@@ -3,10 +3,11 @@ import styled from 'styled-components'
 import Normalimg from '../assets/imgs/normalimage.jpg'
 import { useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux/es/hooks/useSelector'
-
+import api from '../axios/api'
+import { fetchLetters } from '../redux/modules/letter'
 export default function Fanletter({ selectedPlayer }) {
   const navigate = useNavigate()
-  const Letter = useSelector(state => state.letters)
+  const Letter = useSelector(state => state.letters.letters)
 
   return (
     <>

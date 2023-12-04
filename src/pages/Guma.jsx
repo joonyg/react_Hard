@@ -5,13 +5,13 @@ import Footer from '../components/footer'
 import styled from 'styled-components'
 import Normalimg from '../assets/imgs/normalimage.jpg'
 import { useNavigate, useParams } from 'react-router-dom'
-import { deleteLetter, updateletter } from '../redux/modules/letter'
+import { deleteLetter, updateLetter } from '../redux/modules/letter'
 
 export default function Guma() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const { id } = useParams()
-  const letters = useSelector(state => state.letters)
+  const letters = useSelector(state => state.letters.letters)
   const selectedLetter = letters.find(letter => letter.id === id)
   const [isEdit, setIsEdit] = useState(false)
   const [updatedContent, setUpdatedContent] = useState(
@@ -46,7 +46,7 @@ export default function Guma() {
       return
     }
 
-    dispatch(updateletter({ id, updatedContent }))
+    dispatch(updateLetter({ id, updatedContent }))
     setIsEdit(false)
   }
 
@@ -55,7 +55,7 @@ export default function Guma() {
       <Header />
       {selectedLetter && (
         <InfanletterContainer>
-          <GoHomeBt onClick={() => navigate(`/`)}>홈으로</GoHomeBt>
+          <GoHomeBt onClick={() => navigate(`/Home`)}>홈으로</GoHomeBt>
           <Fanletterdiv key={id}>
             <div>
               <header>

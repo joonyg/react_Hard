@@ -1,38 +1,73 @@
-import React, { useEffect, useState, useContext } from 'react'
-import { useSelector } from 'react-redux/es/hooks/useSelector'
+import React, { useEffect, useState } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { addFanLetter } from '../redux/modules/letter' // 툴킷에서 생성한 액션 및 셀렉터 가져오기
 import Header from '../components/header'
 import Btlist from '../components/btList'
 import Footer from '../components/footer'
 import styled from 'styled-components'
-import uuid from 'react-uuid'
 import Fanletter from '../components/Fanletter'
-import { CaptainContext } from '../components/captaincontext'
-import { useDispatch } from 'react-redux'
-import letters from '../redux/modules/letter'
-import { addFanLetter, ADD_FAN_LETTER } from '../redux/modules/letter'
-
+import { login, logout, selectCurrentUser } from '../redux/modules/authSlice'
+import { fetchLetters } from '../redux/modules/letter'
+import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
 export default function Home() {
-  // console.log(Letter, setLetter)
   const dispatch = useDispatch()
-  const Letter = useSelector(state => state.letters)
-  console.log(letters)
-  const [Nickname, setNickname] = useState('')
+  const navigate = useNavigate()
+  const Letter = useSelector(state => state.letters.letters)
+
+  const storedNickname = localStorage.getItem('nickname')
+  const storedUserId = localStorage.getItem('userId')
   const [LetterInput, setLetterInput] = useState('')
   const [selectedPlayer, setSelectedPlayer] = useState('Zeus')
+  const [nickname, setNickname] = useState(storedNickname || '')
+  const currentUser = useSelector(selectCurrentUser)
+  console.log(currentUser)
+  useEffect(() => {
+    dispatch(fetchLetters())
+  }, [LetterInput])
+  useEffect(() => {
+    dispatch(login())
+  }, [dispatch])
 
-  console.log(LetterInput)
-  console.log(Nickname)
-  const newLetter = event => {
+  useEffect(() => {
+    const storedUserId = localStorage.getItem('userId')
+    if (storedUserId) {
+      // 로컬 스토리지에 사용자 정보가 있으면 Redux store에 로그인 상태로 업데이트
+      dispatch(login({ userId: storedUserId }))
+    }
+  }, [dispatch])
+
+  const newLetter = async event => {
     event.preventDefault()
-    dispatch(addFanLetter(Nickname, LetterInput, selectedPlayer))
-    setNickname('')
-    setLetterInput('')
-  }
-  console.log(Letter)
-  // 나머지 컴포넌트 렌더링 코드...
 
-  const InputNickname = event => {
-    setNickname(event.target.value)
+    try {
+      const currentDate = new Date()
+      const dateUpdate = `${currentDate.getFullYear()}년 ${
+        currentDate.getMonth() + 1
+      }월 ${currentDate.getDate()}일`
+
+      const localletter = axios.create({
+        baseURL: 'http://localhost:4000',
+      })
+
+      await localletter.post(`/letters`, {
+        nickname: nickname,
+        content: LetterInput,
+        Avatar: '',
+        writeTo: selectedPlayer,
+        creatAT: dateUpdate,
+        userId: storedUserId,
+      })
+
+      setLetterInput('')
+    } catch (error) {
+      if (error.response && error.response.status === 401) {
+        dispatch(logout())
+        navigate(`/`)
+      } else {
+        console.error(error)
+      }
+    }
   }
 
   const InputLetterInput = event => {
@@ -42,52 +77,42 @@ export default function Home() {
   const SelectPlayer = event => {
     setSelectedPlayer(event.target.value)
   }
+
   return (
     <div>
       <Header />
       <Btlist Letter={Letter} setSelectedPlayer={setSelectedPlayer} />
       <ContextContainer>
-        <ContextContainer>
-          <FanletterBox>
-            <section>
-              <label>닉네임 :</label>
-              <Nicknameinput
-                maxLength="5"
-                placeholder="최대 5자 까지 작성가능"
-                value={Nickname}
-                onChange={event => {
-                  InputNickname(event)
-                }}
-              />
-            </section>
-            <section>
-              <label>내용 :</label>
-              <Fanletterinput
-                placeholder="최대 100자 까지 작성가능"
-                maxLength="100"
-                value={LetterInput}
-                onChange={event => {
-                  InputLetterInput(event)
-                }}
-              />
-            </section>
-            <section>
-              <FanSelectlabel>누구에게 보내는 것인가요?</FanSelectlabel>
-              <select value={selectedPlayer} onChange={SelectPlayer}>
-                <option value="Zeus">제우스</option>
-                <option value="Oner">오너</option>
-                <option value="Faker">페이커</option>
-                <option value="Guma">구마유시</option>
-                <option value="Keria">케리아</option>
-              </select>
-            </section>
-            <ClickFanletter>
-              <ClickFanletterBT onClick={newLetter}>
-                팬 래터 등록
-              </ClickFanletterBT>
-            </ClickFanletter>
-          </FanletterBox>
-        </ContextContainer>
+        <FanletterBox>
+          <section>
+            <label>닉네임 : </label>
+            {nickname}
+          </section>
+          <section>
+            <label>내용 :</label>
+            <Fanletterinput
+              placeholder="최대 100자 까지 작성가능"
+              maxLength="100"
+              value={LetterInput}
+              onChange={event => InputLetterInput(event)}
+            />
+          </section>
+          <section>
+            <FanSelectlabel>누구에게 보내는 것인가요?</FanSelectlabel>
+            <select value={selectedPlayer} onChange={SelectPlayer}>
+              <option value="Zeus">제우스</option>
+              <option value="Oner">오너</option>
+              <option value="Faker">페이커</option>
+              <option value="Guma">구마유시</option>
+              <option value="Keria">케리아</option>
+            </select>
+          </section>
+          <ClickFanletter>
+            <ClickFanletterBT onClick={newLetter}>
+              팬 래터 등록
+            </ClickFanletterBT>
+          </ClickFanletter>
+        </FanletterBox>
         <FanletterBox>
           {Letter.filter(item => item.writeTo === selectedPlayer).length ===
           0 ? (
@@ -101,12 +126,13 @@ export default function Home() {
     </div>
   )
 }
+
 const FanletterBox = styled.form`
   border: 2px solid red;
   padding: 10px;
   width: 550px;
   height: 350px;
-  margin: 0 auto; /* 가운데 정렬을 위해 추가 */
+  margin: 0 auto;
   color: white;
   overflow: auto;
 `

@@ -1,6 +1,6 @@
 import React from 'react'
 import styled from 'styled-components'
-import t1img from '../assets/imgs/T1logo.jpg'
+import t1img from '../assets/imgs/t1v4.png'
 
 export default function footer() {
   return (

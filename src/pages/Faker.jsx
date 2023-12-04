@@ -5,26 +5,38 @@ import Footer from '../components/footer'
 import styled from 'styled-components'
 import Normalimg from '../assets/imgs/normalimage.jpg'
 import { useNavigate, useParams } from 'react-router-dom'
-import { deleteLetter, updateletter } from '../redux/modules/letter'
+import letter, { deleteLetter, updateLetter } from '../redux/modules/letter'
+import { selectCurrentUser } from '../redux/modules/authSlice'
 
 export default function Faker() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const { id } = useParams()
-  const letters = useSelector(state => state.letters)
-  const selectedLetter = letters.find(letter => letter.id === id)
+  const letters = useSelector(state => state.letters.letters)
+  const storedUserId = localStorage.getItem('userId')
+  console.log(letters)
+  const selectedLetter = letters.find(
+    letter => letter.userId === storedUserId && letter.id === id
+  )
+  const currentUser = useSelector(selectCurrentUser)
   const [isEdit, setIsEdit] = useState(false)
   const [updatedContent, setUpdatedContent] = useState(
     selectedLetter ? selectedLetter.content : ''
   )
-
+  useEffect(() => {
+    dispatch(updateLetter)
+  }, [updatedContent])
   const deleteBTN = () => {
     const answer = window.confirm('삭제하시겠습니까?')
 
     if (!answer) return
 
-    dispatch(deleteLetter(id))
-    navigate(`/`)
+    if (currentUser && currentUser.userId === selectedLetter.userId) {
+      dispatch(deleteLetter(id))
+      navigate(`/Home`)
+    } else {
+      alert('해당 게시물을 삭제할 권한이 없습니다.')
+    }
   }
 
   const updateBTN = () => {
@@ -46,7 +58,7 @@ export default function Faker() {
       return
     }
 
-    dispatch(updateletter({ id, updatedContent }))
+    dispatch(updateLetter({ id, updatedContent }))
     setIsEdit(false)
   }
 
@@ -55,7 +67,7 @@ export default function Faker() {
       <Header />
       {selectedLetter && (
         <InfanletterContainer>
-          <GoHomeBt onClick={() => navigate(`/`)}>홈으로</GoHomeBt>
+          <GoHomeBt onClick={() => navigate(`/Home`)}>홈으로</GoHomeBt>
           <Fanletterdiv key={id}>
             <div>
               <header>

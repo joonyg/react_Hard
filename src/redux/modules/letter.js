@@ -1,35 +1,40 @@
 import { v4 as uuid } from 'uuid'
-import FakeData from '../../shared/FakeData.json'
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
+import axios from 'axios'
 
-const DEL_LETTER = 'letter/DEL_LETTER'
-const ADD_FAN_LETTER = 'letter/ADD_FAN_LETTER'
-const UPDATE_LETTER = 'letter/UPDATE_LETTER'
-
-export const deleteLetter = payload => ({
-  type: DEL_LETTER,
-  payload: payload,
-})
-export const updateletter = payload => ({
-  type: UPDATE_LETTER,
-  payload: payload,
+const localletter = axios.create({
+  baseURL: 'http://localhost:4000',
 })
 
-export const addFanLetter = (Nickname, LetterInput, selectedPlayer) => ({
-  type: ADD_FAN_LETTER,
-  payload: { Nickname, LetterInput, selectedPlayer },
-})
+export const fetchLetters = createAsyncThunk(
+  'letters/fetchLetters',
+  async () => {
+    try {
+      const response = await localletter.get('/letters')
+      return response
+    } catch (error) {
+      console.error('편지를 불러오는 동안 오류 발생:', error)
+      throw error
+    }
+  }
+)
 
-// Reducer
-const letterState = FakeData
-
-const letters = (state = letterState, action) => {
-  switch (action.type) {
-    case DEL_LETTER:
+const letterSlice = createSlice({
+  name: 'letters',
+  initialState: {
+    letters: [],
+    status: 'idle',
+    error: null,
+  },
+  reducers: {
+    deleteLetter: (state, action) => {
       const idToDelete = action.payload
-      const newLetters = state.filter(letter => letter.id !== idToDelete)
-      return newLetters
-
-    case ADD_FAN_LETTER:
+      return {
+        ...state,
+        letters: state.letters.filter(letter => letter.id !== idToDelete),
+      }
+    },
+    addFanLetter: (state, action) => {
       const today = new Date()
       const updateDate = `${today.getFullYear()}년 ${
         today.getMonth() + 1
@@ -42,22 +47,56 @@ const letters = (state = letterState, action) => {
         writeTo: action.payload.selectedPlayer,
         Avatar: '',
       }
-      return [newFanLetter, ...state]
-
-    case UPDATE_LETTER:
+      return {
+        ...state,
+        letters: [newFanLetter, ...state.letters],
+      }
+    },
+    updateLetter: async (state, action) => {
       const { id, updatedContent } = action.payload
-      const updatedLetters = state.map(letter => {
-        if (letter.id === id) {
-          return { ...letter, content: updatedContent }
-        } else {
-          return letter
-        }
+
+      try {
+        // 서버에 업데이트 요청
+        await localletter.patch(`/letters/${id}`, { content: updatedContent })
+
+        // 서버에서 업데이트된 데이터 가져오기
+        const response = await localletter.get('/letters')
+        const sortedLetters = response.data.reverse((a, b) => {
+          return new Date(b.creatAT) - new Date(a.creatAT)
+        })
+
+        // 상태 업데이트
+        state.letters = sortedLetters
+        state.status = 'succeeded'
+      } catch (error) {
+        console.error(`Error updating letter with id ${id}:`, error)
+        state.status = 'failed'
+        state.error = error.message
+      }
+    },
+  },
+  extraReducers: builder => {
+    builder
+      .addCase(fetchLetters.pending, state => {
+        state.status = 'loading'
+        state.error = null
       })
-      return updatedLetters
+      .addCase(fetchLetters.fulfilled, (state, action) => {
+        console.log('action.payload:', action.payload.data)
+        state.status = 'succeeded'
+        const sortedLetters = action.payload.data.reverse((a, b) => {
+          return new Date(b.creatAT) - new Date(a.creatAT)
+        })
 
-    default:
-      return state
-  }
-}
+        state.letters = sortedLetters
+      })
+      .addCase(fetchLetters.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.error.message
+      })
+  },
+})
 
-export default letters
+export const { deleteLetter, addFanLetter, updateLetter } = letterSlice.actions
+
+export default letterSlice.reducer
